@@ -1,0 +1,53 @@
+import streamlit as st
+import sqlite3
+import pandas as pd
+from datetime import date
+
+# --- DATABASE SETUP ---
+def init_db():
+    conn = sqlite3.connect('strava_lite.db')
+    c = conn.cursor()
+    c.execute('''CREATE TABLE IF NOT EXISTS activities 
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
+                  user TEXT, type TEXT, distance REAL, date TEXT)''')
+    conn.commit()
+    return conn
+
+conn = init_db()
+
+# --- STREAMLIT UI ---
+st.set_page_config(page_title="Strava Lite", page_icon="🏃")
+st.title("🏃 Strava-Lite Dashboard")
+
+# --- SIDEBAR: Upload Activity ---
+st.sidebar.header("Log a New Workout")
+with st.sidebar.form("activity_form", clear_on_submit=True):
+    user_name = st.text_input("Username")
+    act_type = st.selectbox("Activity Type", ["Run", "Cycling", "Swim", "Walk"])
+    dist = st.number_input("Distance (km)", min_value=0.0, step=0.1)
+    submit = st.form_submit_button("Upload to Feed")
+
+    if submit and user_name:
+        # Save to SQL Database
+        cursor = conn.cursor()
+        cursor.execute("INSERT INTO activities (user, type, distance, date) VALUES (?, ?, ?, ?)",
+                       (user_name, act_type, dist, str(date.today())))
+        conn.commit()
+        st.sidebar.success(f"Logged {act_type} for {user_name}!")
+
+# --- MAIN PAGE: The Feed ---
+st.header("Activity Feed")
+
+# Read from SQL Database
+df = pd.read_sql_query("SELECT * FROM activities ORDER BY id DESC", conn)
+
+if not df.empty:
+    # Display as a clean table
+    st.dataframe(df[['date', 'user', 'type', 'distance']], use_container_width=True)
+    
+    # Simple Visualisation (Leaderboard)
+    st.header("Leaderboard (Total Distance)")
+    leaderboard = df.groupby('user')['distance'].sum().sort_values(ascending=False)
+    st.bar_chart(leaderboard)
+else:
+    st.info("No activities logged yet. Use the sidebar to add your first workout!")
