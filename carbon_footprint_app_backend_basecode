@@ -4,14 +4,82 @@ import pandas as pd
 import pyodbc
 from datetime import date
 
-# --- DATABASE SETUP ---
-def init_db():
-    conn = sqlite3.connect('strava_lite.db')
-    c = conn.cursor()
-    c.execute('''CREATE TABLE IF NOT EXISTS activities 
-                 (id INTEGER PRIMARY KEY AUTOINCREMENT, 
-                  user TEXT, type TEXT, distance REAL, date TEXT)''')
+DB_NAME = "carbon_tracker.db"
+
+def get_connection():
+    return sqlite3.connect(DB_NAME)
+
+def create_table():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS carbon_entries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_name TEXT NOT NULL,
+            category TEXT NOT NULL,
+            activity TEXT NOT NULL,
+            entry_date TEXT NOT NULL,
+            carbon_kg_co2e REAL NOT NULL,
+            notes TEXT,
+            created_at TEXT NOT NULL
+        )
+    """)
+
     conn.commit()
+    conn.close()
+
+def insert_entry(user_name, category, activity, entry_date, carbon_kg_co2e, notes):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        INSERT INTO carbon_entries (
+            user_name,
+            category,
+            activity,
+            entry_date,
+            carbon_kg_co2e,
+            notes,
+            created_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    """, (
+        user_name,
+        category,
+        activity,
+        entry_date,
+        carbon_kg_co2e,
+        notes,
+        datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    ))
+
+    conn.commit()
+    conn.close()
+
+def get_all_entries():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT id, user_name, category, activity, entry_date, carbon_kg_co2e, notes, created_at
+        FROM carbon_entries
+        ORDER BY entry_date DESC, id DESC
+    """)
+
+    rows = cursor.fetchall()
+    conn.close()
+    return rows
+
+def get_total_footprint():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("SELECT SUM(carbon_kg_co2e) FROM carbon_entries")
+    total = cursor.fetchone()[0]
+
+    conn.close()
+    return total if total is not None else 0()
     return conn
 
 conn = init_db()
