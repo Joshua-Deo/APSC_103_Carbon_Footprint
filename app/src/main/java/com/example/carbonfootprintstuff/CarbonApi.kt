@@ -6,7 +6,18 @@ import retrofit2.http.Body
 import retrofit2.http.GET
 import retrofit2.http.POST
 
-data class EntryResponse(val entries: List<List<Any>>)
+data class ApiEntry(
+    val id: Int,
+    val user_name: String,
+    val category: String,
+    val activity: String,
+    val entry_date: String,
+    val carbon_kg_co2e: Float,
+    val notes: String,
+    val created_at: String
+)
+
+data class EntryResponse(val entries: List<ApiEntry>)
 data class TotalResponse(val total_kg: Float)
 
 data class EntryRequest(
@@ -29,7 +40,7 @@ interface CarbonApi {
 }
 
 val api = Retrofit.Builder()
-    .baseUrl("http://10.0.2.2:8000/")
+    .baseUrl("http://172.20.10.3:8000/")
     .addConverterFactory(GsonConverterFactory.create())
     .build()
     .create(CarbonApi::class.java)
